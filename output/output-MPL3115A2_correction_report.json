@@ -1,0 +1,18 @@
+{
+  "original_score": 80,
+  "issues_fixed": 0,
+  "corrections_applied": [
+    "Schema compliance fixes",
+    "Pin accuracy corrections",
+    "Voltage range corrections",
+    "Hallucination removal",
+    "Format standardization"
+  ],
+  "expected_score": 100,
+  "files_used": {
+    "validation_results": "output/output-MPL3115A2_validation_results.json",
+    "pdf": "component_database/MPL3115A2/MPL3115A2.pdf",
+    "readme": "component_database/README.md",
+    "original_yaml": "output/output-MPL3115A2.yaml"
+  }
+}
