@@ -19,21 +19,17 @@ import warnings
 from pathlib import Path
 from typing import Optional, Tuple
 
-# Suppress deprecation warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-# Set service account path (service-account.json is in the same folder)
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(script_dir, 'service-account.json')
 
-# PDF processing
 try:
     import PyPDF2
 except ImportError:
     print("Error: PyPDF2 not installed. Run: pip install PyPDF2")
     sys.exit(1)
 
-# Vertex AI
 try:
     from vertexai.generative_models import GenerativeModel, Part
     import vertexai
@@ -45,24 +41,19 @@ except ImportError:
 def call_gemini_with_files(pdf_path: str, readme_path: str) -> str:
     """Call Vertex AI Gemini API with direct file upload."""
     try:
-        # Initialize Vertex AI (uses GOOGLE_APPLICATION_CREDENTIALS)
         vertexai.init(location="us-central1")
         
-        # Use Gemini model
         model = GenerativeModel("gemini-2.5-flash-lite")
-        
-        # Read files and create parts
+ 
         with open(pdf_path, 'rb') as pdf_file:
             pdf_data = pdf_file.read()
         
         with open(readme_path, 'r', encoding='utf-8') as readme_file:
             readme_data = readme_file.read()
-        
-        # Create parts with correct method
+
         pdf_part = Part.from_data(pdf_data, mime_type="application/pdf")
         readme_part = Part.from_text(readme_data)
-        
-        # Generate content with files
+
         prompt = """Extract rules from the PDF and generate YAML strictly following the README format. 
         Read the README carefully to understand the YAML structure, then extract component information from the PDF.
         Return only valid YAML, no explanations or code fences."""
@@ -126,13 +117,10 @@ Generate the YAML output:"""
 def call_gemini(prompt: str) -> str:
     """Call Vertex AI Gemini API."""
     try:
-        # Initialize Vertex AI (uses GOOGLE_APPLICATION_CREDENTIALS)
         vertexai.init(location="us-central1")
-        
-        # Use Gemini model
+
         model = GenerativeModel("gemini-2.5-flash-lite")
-        
-        # Generate content
+
         response = model.generate_content(prompt)
         
         return response.text
@@ -142,20 +130,15 @@ def call_gemini(prompt: str) -> str:
 
 def clean_yaml_response(response_text: str) -> str:
     """Clean YAML response by removing code fences and extra text."""
-    # Remove YAML code fences
     yaml_text = re.sub(r'```yaml\s*', '', response_text)
     yaml_text = re.sub(r'```\s*', '', yaml_text)
     
-    # Remove any leading/trailing whitespace
     yaml_text = yaml_text.strip()
     
-    # Fix common YAML issues
-    # Replace problematic custom tags with standard ones
     yaml_text = yaml_text.replace('!signal_level(low)', 'signal_level: low')
     yaml_text = yaml_text.replace('!signal_level(high)', 'signal_level: high')
     yaml_text = yaml_text.replace('!signal_level(medium)', 'signal_level: medium')
-    
-    # Try to validate it's valid YAML
+
     try:
         yaml.safe_load(yaml_text)
     except yaml.YAMLError as e:
@@ -167,20 +150,17 @@ def clean_yaml_response(response_text: str) -> str:
 def save_yaml(yaml_content: str, pdf_path: str, output_dir: str = "output", custom_filename: str = None) -> None:
     """Save YAML content to file with component name."""
     try:
-        # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
         
         if custom_filename:
             output_filename = f"{custom_filename}.yaml"
         else:
-            # Extract component name from PDF path
             pdf_filename = os.path.basename(pdf_path)
             component_name = os.path.splitext(pdf_filename)[0]
             output_filename = f"output-{component_name}.yaml"
         
         output_path = os.path.join(output_dir, output_filename)
         
-        # Save YAML content
         with open(output_path, 'w', encoding='utf-8') as file:
             file.write(yaml_content)
         
@@ -214,28 +194,22 @@ def main():
     readme_path = sys.argv[2]
     
     try:
-        # Validate inputs
         validate_inputs(pdf_path, readme_path)
         
         print("Step A: Validating files...")
-        # Step A: Validate files (no text extraction needed)
         
         print("Step B: Preparing files for upload...")
-        # Step B: Files are ready for direct upload
         
         print("Step C: Calling Gemini with files...")
-        # Step C: Call Gemini with direct file upload
         response_text = call_gemini_with_files(pdf_path, readme_path)
         
         print("Step D: Cleaning YAML...")
-        # Step D: Clean YAML
         yaml_content = clean_yaml_response(response_text)
         
         print("Step E: Saving output...")
-        # Step E: Save YAML
         save_yaml(yaml_content, pdf_path)
         
-        print("✅ YAML generated successfully!")
+        print(" YAML generated successfully!")
         
     except Exception as e:
         print(f"❌ Error: {str(e)}")

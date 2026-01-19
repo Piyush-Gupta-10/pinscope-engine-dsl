@@ -1,0 +1,83 @@
+component: TPS63021
+category: Power Management
+
+packages:
+  dsj14:
+    pins:
+      power.vin.main: ["1"]
+      power.gnd.ref: ["2", "14"]
+      signal.ps_sync.in: ["3"]
+      signal.pg.out: ["4"]
+      signal.fb.in: ["5"]
+      power.vout.main: ["6"]
+      power.l1.ac: ["7"]
+      power.l2.ac: ["8"]
+      power.gnd.ref: ["9", "10", "11", "12", "13"]
+
+pins:
+  power.vin.main:
+    names: ["VIN"]
+    role: power
+    direction: input
+    voltage:
+      abs_min: 1.8
+      abs_max: 5.5
+    description: Main supply voltage input.
+
+  power.gnd.ref:
+    names: ["GND"]
+    role: ground
+    direction: passive
+    description: Ground reference.
+
+  signal.ps_sync.in:
+    names: ["PS/SYNC"]
+    role: io
+    direction: input
+    voltage:
+      abs_min: 0
+      abs_max: 5.5
+    description: Power save / Synchronisation input.
+
+  signal.pg.out:
+    names: ["PG"]
+    role: io
+    direction: output
+    voltage:
+      nominal: 3.3
+    description: Power Good output.
+
+  signal.fb.in:
+    names: ["FB"]
+    role: io
+    direction: input
+    voltage:
+      abs_min: -0.3
+      abs_max: 7
+    description: Feedback input.
+
+  power.vout.main:
+    names: ["VOUT"]
+    role: power
+    direction: output
+    voltage:
+      nominal: 3.3
+    description: Main output voltage.
+
+  power.l1.ac:
+    names: ["L1"]
+    role: power
+    direction: passive
+    voltage:
+      abs_min: -0.3
+      abs_max: 7
+    description: Inductor connection 1.
+
+  power.l2.ac:
+    names: ["L2"]
+    role: power
+    direction: passive
+    voltage:
+      abs_min: -0.3
+      abs_max: 7
+    description: Inductor connection 2.

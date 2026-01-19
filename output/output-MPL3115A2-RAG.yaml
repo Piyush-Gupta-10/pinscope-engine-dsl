@@ -1,0 +1,129 @@
+component: ADXL345
+category: Sensor
+
+packages:
+  lga16:
+    pins:
+      power.vdd.main: ["1"]
+      power.gnd.ref: ["2"]
+      signal.spi.sdo: ["3"]
+      signal.spi.sdi: ["4"]
+      signal.spi.sck: ["5"]
+      signal.spi.ncs: ["6"]
+      signal.int1.out: ["7"]
+      signal.int2.out: ["8"]
+      analog.vref.in: ["9"]
+      config.altaddr.strap: ["10"]
+      signal.i2c.sda: ["11"]
+      signal.i2c.scl: ["12"]
+      power.vddio.main: ["13"]
+      signal.int1.out: ["14"]
+      signal.int2.out: ["15"]
+      power.gnd.ref: ["16"]
+
+pins:
+  power.vdd.main:
+    names: ["VDD"]
+    role: power
+    direction: input
+    voltage:
+      nominal: 3.3
+      abs_min: 1.95
+      abs_max: 3.6
+    rules:
+      - cap(0.1u)!
+    description: Main power supply
+
+  power.gnd.ref:
+    names: ["GND"]
+    role: ground
+    direction: passive
+    description: Ground reference
+
+  signal.spi.sdo:
+    names: ["SDO"]
+    role: io
+    direction: input
+    rules:
+      - pull(up, power.vddio.main, <=10k)
+    description: SPI Serial Data Out
+
+  signal.spi.sdi:
+    names: ["SDI"]
+    role: io
+    direction: output
+    rules:
+      - pull(up, power.vddio.main, <=10k)
+    description: SPI Serial Data In
+
+  signal.spi.sck:
+    names: ["SCK"]
+    role: clock
+    direction: input
+    description: SPI Serial Clock
+
+  signal.spi.ncs:
+    names: ["NCS"]
+    role: io
+    direction: input
+    rules:
+      - pull(up, power.vddio.main, <=10k)
+    description: SPI Chip Select Not
+
+  signal.int1.out:
+    names: ["INT1"]
+    role: io
+    direction: output
+    description: Interrupt Output 1
+
+  signal.int2.out:
+    names: ["INT2"]
+    role: io
+    direction: output
+    description: Interrupt Output 2
+
+  analog.vref.in:
+    names: ["VREF"]
+    role: analog
+    direction: input
+    voltage:
+      nominal: 3.3
+    description: Analog reference voltage input
+
+  config.altaddr.strap:
+    names: ["ALT ADDRESS"]
+    role: config
+    direction: input
+    rules:
+      - pull(down, power.gnd.ref, 100k)
+    description: Alternate I2C address strap pin
+
+  signal.i2c.sda:
+    names: ["SDA"]
+    role: io
+    direction: bidirectional
+    rules:
+      - pull(up, power.vddio.main, <=10k)!
+    tags: [i2c_sda]
+    description: I2C Data Line
+
+  signal.i2c.scl:
+    names: ["SCL"]
+    role: clock
+    direction: input
+    rules:
+      - pull(up, power.vddio.main, <=10k)!
+    tags: [i2c_scl]
+    description: I2C Clock Line
+
+  power.vddio.main:
+    names: ["VDDIO"]
+    role: power
+    direction: input
+    voltage:
+      nominal: 3.3
+      abs_min: 1.95
+      abs_max: 3.6
+    rules:
+      - cap(0.1u)!
+    description: Main I/O power supply

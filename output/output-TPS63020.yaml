@@ -1,0 +1,104 @@
+component: TPS63020
+category: Buck-Boost Converter
+
+packages:
+  DSJ:
+    pins:
+      VINA: ["1"]
+      GND: ["2"]
+      FB: ["3"]
+      VOUT: ["4", "5"]
+      L2: ["6", "7"]
+      L1: ["8", "9"]
+      VIN: ["10", "11"]
+      EN: ["12"]
+      PS_SYNC: ["13"]
+      PG: ["14"]
+      THERMAL_PAD: ["THERMAL_PAD"]
+
+pins:
+  VINA:
+    names: ["VINA"]
+    role: power
+    direction: input
+    voltage:
+      nominal: 3.3
+      abs_min: 1.8
+      abs_max: 5.5
+    rules:
+      - cap(0.1u, max_dist=5mm)
+    description: Supply voltage for control stage.
+
+  GND:
+    names: ["GND"]
+    role: ground
+    direction: passive
+    description: Control / logic ground.
+
+  FB:
+    names: ["FB"]
+    role: analog
+    direction: input
+    description: Voltage feedback of adjustable versions, must be connected to VOUT on fixed output voltage versions.
+
+  VOUT:
+    names: ["VOUT"]
+    role: power
+    direction: output
+    voltage:
+      nominal: 1.2
+      abs_min: 1.2
+      abs_max: 5.5
+    rules:
+      - cap(2x22u+3x22u, max_dist=5mm)
+    description: Buck-boost converter output.
+
+  L2:
+    names: ["L2"]
+    role: passive
+    direction: passive
+    description: Connection for inductor.
+
+  L1:
+    names: ["L1"]
+    role: passive
+    direction: passive
+    description: Connection for inductor.
+
+  VIN:
+    names: ["VIN"]
+    role: power
+    direction: input
+    voltage:
+      nominal: 3.6
+      abs_min: 1.8
+      abs_max: 5.5
+    rules:
+      - cap(2x10u, max_dist=5mm)
+    description: Supply voltage for power stage.
+
+  EN:
+    names: ["EN"]
+    role: config
+    direction: input
+    rules:
+      - pull(up, VIN, <=100k)
+    description: Enable input (1 enabled, 0 disabled), must not be left open.
+
+  PS_SYNC:
+    names: ["PS/SYNC"]
+    role: config
+    direction: input
+    description: Enable / disable power save mode (1 disabled, 0 enabled, clock signal for synchronization), must not be left open.
+
+  PG:
+    names: ["PG"]
+    role: output
+    direction: output
+    description: Output power good (1 good, 0 failure; open-drain), can be left open.
+
+  THERMAL_PAD:
+    names: ["THERMAL_PAD"]
+    role: passive
+    direction: passive
+    description: The exposed thermal pad is connected to PGND.
