@@ -1,83 +1,69 @@
-component: TPS63021
-category: Power Management
+component: LMV324
+category: Amplifier
 
 packages:
-  dsj14:
+  soic8:
     pins:
-      power.vin.main: ["1"]
-      power.gnd.ref: ["2", "14"]
-      signal.ps_sync.in: ["3"]
-      signal.pg.out: ["4"]
-      signal.fb.in: ["5"]
-      power.vout.main: ["6"]
-      power.l1.ac: ["7"]
-      power.l2.ac: ["8"]
-      power.gnd.ref: ["9", "10", "11", "12", "13"]
+      power.vcc.main: ["1"]
+      signal.in1.p: ["2"]
+      signal.out1: ["3"]
+      power.gnd.ref: ["4"]
+      signal.in2.p: ["5"]
+      signal.out2: ["6"]
+      signal.in3.p: ["7"]
+      signal.out3: ["8"]
 
 pins:
-  power.vin.main:
-    names: ["VIN"]
+  power.vcc.main:
+    names: ["VCC"]
     role: power
     direction: input
     voltage:
-      abs_min: 1.8
+      nominal: 5.0
+      abs_min: 2.7
       abs_max: 5.5
-    description: Main supply voltage input.
+    rules:
+      - cap(0.1u)!
+    description: Main power supply
 
   power.gnd.ref:
     names: ["GND"]
     role: ground
-    direction: passive
-    description: Ground reference.
+    direction: input
+    description: Ground reference
 
-  signal.ps_sync.in:
-    names: ["PS/SYNC"]
+  signal.in1.p:
+    names: ["IN1"]
     role: io
     direction: input
-    voltage:
-      abs_min: 0
-      abs_max: 5.5
-    description: Power save / Synchronisation input.
+    description: Input 1 positive
 
-  signal.pg.out:
-    names: ["PG"]
+  signal.out1:
+    names: ["OUT1"]
     role: io
     direction: output
-    voltage:
-      nominal: 3.3
-    description: Power Good output.
+    description: Output 1
 
-  signal.fb.in:
-    names: ["FB"]
+  signal.in2.p:
+    names: ["IN2"]
     role: io
     direction: input
-    voltage:
-      abs_min: -0.3
-      abs_max: 7
-    description: Feedback input.
+    description: Input 2 positive
 
-  power.vout.main:
-    names: ["VOUT"]
-    role: power
+  signal.out2:
+    names: ["OUT2"]
+    role: io
     direction: output
-    voltage:
-      nominal: 3.3
-    description: Main output voltage.
+    description: Output 2
 
-  power.l1.ac:
-    names: ["L1"]
-    role: power
-    direction: passive
-    voltage:
-      abs_min: -0.3
-      abs_max: 7
-    description: Inductor connection 1.
+  signal.in3.p:
+    names: ["IN3"]
+    role: io
+    direction: input
+    description: Input 3 positive
 
-  power.l2.ac:
-    names: ["L2"]
-    role: power
-    direction: passive
-    voltage:
-      abs_min: -0.3
-      abs_max: 7
-    description: Inductor connection 2.
+  signal.out3:
+    names: ["OUT3"]
+    role: io
+    direction: output
+    description: Output 3

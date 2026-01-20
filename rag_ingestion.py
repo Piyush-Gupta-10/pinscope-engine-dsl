@@ -482,15 +482,51 @@ class VectorDatabase:
             # Add extracted fields for filtering
             structured = chunk.structured_data
             if structured and 'error' not in structured:
-                metadata.update({
-                    'component_name': structured.get('component_name'),
-                    'component_type': structured.get('component_type'),
-                    'package': structured.get('physical', {}).get('package') if structured.get('physical') else None,
-                    'pins': structured.get('physical', {}).get('pins') if structured.get('physical') else None,
-                    'interfaces': structured.get('interfaces', []),
-                    'supply_voltage_min': structured.get('electrical', {}).get('supply_voltage', {}).get('min') if structured.get('electrical') and structured.get('electrical', {}).get('supply_voltage') else None,
-                    'supply_voltage_max': structured.get('electrical', {}).get('supply_voltage', {}).get('max') if structured.get('electrical') and structured.get('electrical', {}).get('supply_voltage') else None
-                })
+                try:
+                    # Helper function to safely get nested values
+                    def safe_get(data, *keys, default=None):
+                        for key in keys:
+                            if isinstance(data, dict) and key in data and data[key] is not None:
+                                data = data[key]
+                            else:
+                                return default
+                        return data
+                    
+                    # Helper function to safely get interfaces (handle lists)
+                    def safe_get_interfaces(data):
+                        interfaces = data.get('interfaces')
+                        if interfaces is None:
+                            return []
+                        elif isinstance(interfaces, list):
+                            return interfaces
+                        else:
+                            return [interfaces]  # Convert single value to list
+                    
+                    extracted_metadata = {
+                        'component_name': structured.get('component_name'),
+                        'component_type': structured.get('component_type'),
+                        'package': safe_get(structured, 'physical', 'package'),
+                        'pins': safe_get(structured, 'physical', 'pins'),
+                        'interfaces': safe_get_interfaces(structured),
+                        'supply_voltage_min': safe_get(structured, 'electrical', 'supply_voltage', 'min'),
+                        'supply_voltage_max': safe_get(structured, 'electrical', 'supply_voltage', 'max')
+                    }
+                    
+                    # Filter out None values, but keep empty lists for interfaces
+                    filtered_metadata = {}
+                    for k, v in extracted_metadata.items():
+                        if v is not None:
+                            if k == 'interfaces' and isinstance(v, list):
+                                # Keep interfaces even if empty
+                                filtered_metadata[k] = v
+                            else:
+                                filtered_metadata[k] = v
+                    
+                    metadata.update(filtered_metadata)
+                except Exception as e:
+                    print(f"Error processing metadata for chunk {chunk.chunk_id}: {e}")
+                    print(f"Structured data: {structured}")
+                    # Continue with basic metadata if extraction fails
             
             vectors.append({
                 'id': chunk.chunk_id,

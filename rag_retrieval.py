@@ -271,6 +271,21 @@ class RAGRetriever:
             }
         except Exception as e:
             return {'error': str(e)}
+    
+    def has_chunks_for_pdf(self, pdf_filename: str) -> bool:
+        """Check if chunks exist for a specific PDF file."""
+        try:
+            # Search for chunks with this specific source_file
+            result = self.index.query(
+                vector=[0.0] * 768,  # Dummy vector for metadata filtering
+                top_k=1,
+                include_metadata=True,
+                filter={"source_file": pdf_filename}
+            )
+            return len(result['matches']) > 0
+        except Exception as e:
+            print(f"Error checking PDF chunks: {e}")
+            return False
 
 
 def main():

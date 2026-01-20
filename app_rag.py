@@ -52,15 +52,13 @@ class RAGYAMLGenerator:
         """Ensure PDF is processed and stored in vector database."""
         print("Checking if PDF is already processed...")
         
-        # Check if we have chunks for this PDF
+        # Check if we have chunks for this specific PDF
         pdf_filename = os.path.basename(pdf_path)
-        stats = self.retriever.get_collection_stats()
-        
-        if stats.get('total_chunks', 0) == 0:
-            print("No chunks found. Processing PDF...")
-            self.ingestion_pipeline.process_pdf(pdf_path)
+        if self.retriever.has_chunks_for_pdf(pdf_filename):
+            print(f"Found existing chunks for {pdf_filename}")
         else:
-            print(f"Found {stats['total_chunks']} chunks in database")
+            print(f"No chunks found for {pdf_filename}. Processing PDF...")
+            self.ingestion_pipeline.process_pdf(pdf_path)
     
     def generate_yaml_with_rag(self, pdf_path: str, readme_path: str) -> str:
         """Generate YAML using RAG-enhanced approach."""
