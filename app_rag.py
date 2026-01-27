@@ -52,12 +52,14 @@ class RAGYAMLGenerator:
         """Ensure PDF is processed and stored in vector database."""
         print("Checking if PDF is already processed...")
         
-        # Check if we have chunks for this specific PDF
-        pdf_filename = os.path.basename(pdf_path)
-        if self.retriever.has_chunks_for_pdf(pdf_filename):
-            print(f"Found existing chunks for {pdf_filename}")
+        # Check if we have chunks for this specific PDF using the unique source_id
+        parent_dir = os.path.basename(os.path.dirname(pdf_path))
+        source_id = f"{parent_dir}/{os.path.basename(pdf_path)}"
+        
+        if self.retriever.has_chunks_for_pdf(source_id):
+            print(f"Found existing chunks for {source_id}")
         else:
-            print(f"No chunks found for {pdf_filename}. Processing PDF...")
+            print(f"No chunks found for {source_id}. Processing PDF...")
             self.ingestion_pipeline.process_pdf(pdf_path)
     
     def generate_yaml_with_rag(self, pdf_path: str, readme_path: str) -> str:
@@ -69,8 +71,9 @@ class RAGYAMLGenerator:
         
         # Step 2: Retrieve relevant context
         print("Retrieving relevant context from PDF...")
-        pdf_filename = os.path.basename(pdf_path)
-        retrieval_result = self.retriever.retrieve_context_for_yaml_generation(readme_path, source_file=pdf_filename)
+        parent_dir = os.path.basename(os.path.dirname(pdf_path))
+        source_id = f"{parent_dir}/{os.path.basename(pdf_path)}"
+        retrieval_result = self.retriever.retrieve_context_for_yaml_generation(readme_path, source_file=source_id)
         
         # Step 3: Read README for format rules
         print("Reading README format rules...")
@@ -117,13 +120,8 @@ Generate the YAML output based on the above information:"""
     def _call_gemini(self, prompt: str) -> str:
         """Call Vertex AI Gemini API."""
         try:
-            # Get project ID from environment or use default
-            project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
-            if not project_id:
-                print("Warning: GOOGLE_CLOUD_PROJECT not set, using default project")
-            
-            vertexai.init(project=project_id, location="us-central1")
-            model = GenerativeModel("gemini-2.5-flash-lite")
+            # Initialization is handled by imports in rag_ingestion
+            model = GenerativeModel("gemini-2.0-flash-exp")
             
             # Set temperature to 0 for consistent results
             generation_config = {

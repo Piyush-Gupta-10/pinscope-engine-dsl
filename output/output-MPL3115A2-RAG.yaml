@@ -1,25 +1,17 @@
-component: ADXL345
+component: MPL3115A2
 category: Sensor
 
 packages:
-  lga16:
+  lga8:
     pins:
       power.vdd.main: ["1"]
-      power.gnd.ref: ["2"]
-      signal.spi.sdo: ["3"]
-      signal.spi.sdi: ["4"]
-      signal.spi.sck: ["5"]
-      signal.spi.ncs: ["6"]
-      signal.int1.out: ["7"]
-      signal.int2.out: ["8"]
-      analog.cap.ref: ["9"]
-      power.vddio.main: ["10"]
-      signal.i2c.sda: ["11"]
-      signal.i2c.scl: ["12"]
-      config.altaddr.strap: ["13"]
-      config.sleep.strap: ["14"]
-      config.lowpower.strap: ["15"]
-      power.gnd.ref: ["16"]
+      analog.cap.ref: ["2"]
+      power.gnd.ref: ["3"]
+      power.vddio.main: ["4"]
+      signal.int2.out: ["5"]
+      signal.int1.out: ["6"]
+      signal.i2c.sda: ["7"]
+      signal.i2c.scl: ["8"]
 
 pins:
   power.vdd.main:
@@ -27,109 +19,56 @@ pins:
     role: power
     direction: input
     voltage:
-      nominal: 3.3
+      nominal: 2.5
       abs_min: 1.95
       abs_max: 3.6
     rules:
       - cap(0.1u)!
-    description: Main power supply
+    description: VDD power supply connection (1.95 V to 3.6 V)
+
+  analog.cap.ref:
+    names: ["CAP"]
+    role: analog
+    direction: passive
+    description: External capacitor
 
   power.gnd.ref:
     names: ["GND"]
     role: ground
-    direction: passive
-    description: Ground reference
+    direction: input
+    description: Ground
 
   power.vddio.main:
     names: ["VDDIO"]
     role: power
     direction: input
     voltage:
-      nominal: 3.3
-      abs_min: 1.95
+      nominal: 1.8
+      abs_min: 1.62
       abs_max: 3.6
-    rules:
-      - cap(0.1u)!
-    description: I/O power supply
-
-  signal.spi.sdo:
-    names: ["SDO"]
-    role: io
-    direction: input
-    tags: [spi_miso]
-    description: SPI Data Out (Master In Slave Out)
-
-  signal.spi.sdi:
-    names: ["SDI"]
-    role: io
-    direction: output
-    tags: [spi_mosi]
-    description: SPI Data In (Master Out Slave In)
-
-  signal.spi.sck:
-    names: ["SCK"]
-    role: clock
-    direction: input
-    tags: [spi_sclk]
-    description: SPI Clock
-
-  signal.spi.ncs:
-    names: ["NCS"]
-    role: io
-    direction: input
-    tags: [spi_cs]
-    description: SPI Chip Select (active low)
-
-  signal.int1.out:
-    names: ["INT1"]
-    role: io
-    direction: output
-    description: Interrupt 1 output
+    description: Digital interface power supply (1.62 V to 3.6 V)
 
   signal.int2.out:
     names: ["INT2"]
     role: io
     direction: output
-    description: Interrupt 2 output
+    description: Pressure interrupt 2
 
-  analog.cap.ref:
-    names: ["CAP"]
-    role: analog
-    direction: passive
-    rules:
-      - cap(1u)!
-    description: Decoupling capacitor
+  signal.int1.out:
+    names: ["INT1"]
+    role: io
+    direction: output
+    description: Pressure interrupt 1
 
   signal.i2c.sda:
-    names: ["SDA"]
+    names: ["SDL", "SDA"]
     role: io
     direction: bidirectional
-    rules:
-      - pull(up, power.vddio.main, <=10k)!
+    description: I2C serial data
     tags: [i2c_sda]
-    description: I2C data line
 
   signal.i2c.scl:
     names: ["SCL"]
     role: clock
-    direction: input
-    tags: [i2c_scl]
-    description: I2C clock line
-
-  config.altaddr.strap:
-    names: ["ALT ADDRESS"]
-    role: config
-    direction: input
-    description: Alternate I2C address strap pin
-
-  config.sleep.strap:
-    names: ["SLEEP"]
-    role: config
-    direction: input
-    description: Sleep mode strap pin
-
-  config.lowpower.strap:
-    names: ["LOWPOWER"]
-    role: config
-    direction: input
-    description: Low power mode strap pin
+    direction: output
+    description: I2C serial clock

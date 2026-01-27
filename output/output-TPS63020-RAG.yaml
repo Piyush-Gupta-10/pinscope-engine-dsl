@@ -1,69 +1,96 @@
-component: LMV324
-category: Amplifier
+component: TPS63020
+category: Power
 
 packages:
-  soic8:
+  VSON (14):
     pins:
-      power.vcc.main: ["1"]
-      signal.in1.p: ["2"]
-      signal.out1: ["3"]
-      power.gnd.ref: ["4"]
-      signal.in2.p: ["5"]
-      signal.out2: ["6"]
-      signal.in3.p: ["7"]
-      signal.out3: ["8"]
+      power.vina.in: ["1"]
+      ground.logic.ref: ["2"]
+      signal.fb.in: ["3"]
+      power.vout.out: ["4", "5"]
+      signal.l2.io: ["6", "7"]
+      signal.l1.io: ["8", "9"]
+      power.vin.in: ["10", "11"]
+      signal.en.in: ["12"]
+      signal.ps_sync.in: ["13"]
+      signal.pg.out: ["14"]
+      ground.power.ref: ["Exposed Thermal Pad"]
 
 pins:
-  power.vcc.main:
-    names: ["VCC"]
+  power.vina.in:
+    names: ["VINA"]
     role: power
     direction: input
     voltage:
-      nominal: 5.0
-      abs_min: 2.7
+      nominal: 3.6 #Example from Quiescent current test condition
+      abs_min: 1.8
       abs_max: 5.5
-    rules:
-      - cap(0.1u)!
-    description: Main power supply
+    description: Supply voltage for control stage
 
-  power.gnd.ref:
+  ground.logic.ref:
     names: ["GND"]
     role: ground
-    direction: input
-    description: Ground reference
+    direction: passive
+    description: Control / logic ground
 
-  signal.in1.p:
-    names: ["IN1"]
+  signal.fb.in:
+    names: ["FB"]
     role: io
     direction: input
-    description: Input 1 positive
+    description: Voltage feedback of adjustable versions, must be connected to VOUT on fixed output voltage versions
 
-  signal.out1:
-    names: ["OUT1"]
+  power.vout.out:
+    names: ["VOUT"]
+    role: power
+    direction: output
+    voltage:
+      nominal: 3.3 #Example from Quiescent current test condition
+      abs_min: 1.2
+      abs_max: 5.5
+    description: Buck-boost converter output
+
+  signal.l2.io:
+    names: ["L2"]
+    role: io
+    direction: bidirectional
+    description: Connection for inductor
+
+  signal.l1.io:
+    names: ["L1"]
+    role: io
+    direction: bidirectional
+    description: Connection for inductor
+
+  power.vin.in:
+    names: ["VIN"]
+    role: power
+    direction: input
+    voltage:
+      nominal: 3.6 #Example from Quiescent current test condition
+      abs_min: 1.8
+      abs_max: 5.5
+    description: Supply voltage for power stage
+
+  signal.en.in:
+    names: ["EN"]
+    role: io
+    direction: input
+    description: Enable input (1 enabled, 0 disabled), must not be left open
+
+  signal.ps_sync.in:
+    names: ["PS/SYNC"]
+    role: io
+    direction: input
+    description: Enable / disable power save mode (1 disabled, 0 enabled, clock signal for synchronization), must not be left open
+
+  signal.pg.out:
+    names: ["PG"]
     role: io
     direction: output
-    description: Output 1
+    description: Output power good (1 good, 0 failure; open-drain), can be left open
 
-  signal.in2.p:
-    names: ["IN2"]
-    role: io
-    direction: input
-    description: Input 2 positive
-
-  signal.out2:
-    names: ["OUT2"]
-    role: io
-    direction: output
-    description: Output 2
-
-  signal.in3.p:
-    names: ["IN3"]
-    role: io
-    direction: input
-    description: Input 3 positive
-
-  signal.out3:
-    names: ["OUT3"]
-    role: io
-    direction: output
-    description: Output 3
+  ground.power.ref:
+    names: ["PGND", "Exposed Thermal Pad"]
+    role: ground
+    direction: passive
+    description: Power ground

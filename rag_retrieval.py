@@ -14,13 +14,31 @@ import sys
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
-import google.genai as genai
-import pinecone
+import vertexai
+from vertexai.language_models import TextEmbeddingModel
 from pinecone import Pinecone, ServerlessSpec
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+# Global initialization of Vertex AI
+def init_vertex_ai():
+    project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
+    location = os.getenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
+    
+    # Try to find service account
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    credentials_path = os.path.join(script_dir, 'service-account.json')
+    
+    if os.path.exists(credentials_path):
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
+        print(f"Using service account from: {credentials_path}")
+    
+    vertexai.init(project=project_id, location=location)
+    print(f"Vertex AI initialized in {location}")
+
+init_vertex_ai()
 
 
 @dataclass
@@ -138,22 +156,16 @@ class RAGRetriever:
         if not pinecone_api_key:
             raise ValueError("PINECONE_API_KEY not found in environment variables or .env file")
         
-        google_api_key = os.getenv('GOOGLE_API_KEY')
-        if not google_api_key:
-            raise ValueError("GOOGLE_API_KEY not found in environment variables or .env file")
-        
         # Initialize Pinecone
         self.pc = Pinecone(api_key=pinecone_api_key)
-        
-        # Get index
         self.index_name = collection_name.replace("_", "-")
         self.index = self.pc.Index(self.index_name)
         
-        # Initialize Gemini client
-        print(f"Loading Gemini embedding model for retrieval...")
-        self.client = genai.Client(api_key=google_api_key)
+        # Initialize Vertex AI Embedding model
+        print(f"Loading Vertex AI embedding model for retrieval...")
+        self.embedding_model = TextEmbeddingModel.from_pretrained("text-embedding-004")
         self.model_name = "text-embedding-004"
-        print("Gemini embedding model loaded for retrieval")
+        print("Vertex AI embedding model loaded for retrieval")
         
         self.query_generator = QueryGenerator()
         print(f"Connected to vector database for retrieval: {collection_name}")
@@ -161,12 +173,9 @@ class RAGRetriever:
     def search_relevant_chunks(self, query: str, n_results: int = 5, min_similarity: float = 0.3, source_file: str = None) -> List[Dict[str, Any]]:
         """Search for relevant chunks with similarity filtering using Pinecone."""
         try:
-            # Generate embedding for query using Gemini
-            result = self.client.models.embed_content(
-                model=self.model_name,
-                contents=[query]
-            )
-            query_embedding = result.embeddings[0].values
+            # Generate embedding for query using Vertex AI
+            embeddings = self.embedding_model.get_embeddings([query])
+            query_embedding = embeddings[0].values
             
             # Build filter for source file if specified
             filter_dict = {}
@@ -185,8 +194,10 @@ class RAGRetriever:
             for match in results['matches']:
                 similarity = match['score']
                 if similarity >= min_similarity:
+                    # Prefer the combined searchable text for retrieval context
+                    content = match['metadata'].get('text', match['metadata'].get('original_raw_text', ''))
                     filtered_results.append({
-                        'text': match['metadata'].get('text', ''),
+                        'text': content,
                         'metadata': match['metadata'],
                         'similarity': similarity
                     })

@@ -19,7 +19,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-import google.genai as genai
 import pinecone
 from pinecone import Pinecone, ServerlessSpec
 from dotenv import load_dotenv
@@ -27,14 +26,33 @@ import fitz  # PyMuPDF
 from PIL import Image
 import io
 import base64
-import json
 
 # Vertex AI imports
+import vertexai
 from google.cloud import aiplatform
 from vertexai.generative_models import GenerativeModel, Image as VertexImage
+from vertexai.language_models import TextEmbeddingModel
 
 # Load environment variables
 load_dotenv()
+
+# Global initialization of Vertex AI
+def init_vertex_ai():
+    project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
+    location = os.getenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
+    
+    # Try to find service account
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    credentials_path = os.path.join(script_dir, 'service-account.json')
+    
+    if os.path.exists(credentials_path):
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
+        print(f"Using service account from: {credentials_path}")
+    
+    vertexai.init(project=project_id, location=location)
+    print(f"Vertex AI initialized in {location}")
+
+init_vertex_ai()
 
 
 @dataclass
@@ -52,12 +70,13 @@ class DocumentChunk:
 @dataclass
 class StructuredDocumentChunk:
     """Chunk with both text and structured data from vision extraction."""
-    text: str  # Original OCR text
+    text: str  # Original raw OCR text
     structured_data: Dict  # JSON from Gemini Vision
     page_number: int
     chunk_id: str
     source_file: str
     confidence: float
+    searchable_text: str  # Combined text for embedding/search
     embedding: Optional[List[float]] = None
 
 
@@ -65,69 +84,89 @@ class VertexVisionExtractor:
     """Extracts structured data from PDF page images using Vertex AI Vision."""
     
     def __init__(self):
-        # Initialize Vertex AI
-        project_id = os.getenv('GOOGLE_CLOUD_PROJECT', 'default-project')
-        location = os.getenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
-        
         try:
-            aiplatform.init(project=project_id, location=location)
             self.model = GenerativeModel("gemini-2.0-flash-exp")
-            print("Vertex AI Vision initialized successfully")
+            print("Vertex AI Vision (Gemini 2.0) initialized successfully")
         except Exception as e:
-            print(f"Vertex AI initialization failed: {e}")
+            print(f"Vertex AI Vision initialization failed: {e}")
             self.model = None
     
     def extract_structured_from_image(self, image: Image.Image, prompt: str) -> Dict:
-        """Extract structured data from PDF page image using Vertex AI Vision."""
+        """Extract structured data from PDF page image using Vertex AI Vision with retry on 429."""
+        import time
+        import random
+
+        max_retries = 8
+        base_wait = 5  # seconds
+
         try:
-            # Rate limiting to avoid 429 errors (2 requests per minute)
-            import time
-            time.sleep(5)  # Wait 30 seconds between API calls
-            # Convert PIL to bytes
+            # Convert PIL to bytes (same as your logic)
             img_byte_arr = io.BytesIO()
             image.save(img_byte_arr, format='PNG')
             img_bytes = img_byte_arr.getvalue()
-            
+
             # Debug: Check image properties
             print(f"  Image: {image.size}, Mode: {image.mode}, Size: {len(img_bytes)} bytes")
-            
+
             if not self.model:
                 raise ValueError("Vertex AI model not initialized")
-            
+
             # Create Vertex AI Image object
             vertex_image = VertexImage.from_bytes(img_bytes)
-            
-            # Make API call with Vertex AI Vision
-            response = self.model.generate_content([
-                prompt,
-                vertex_image
-            ])
-            
-            # Debug: Log response
-            print(f"  Response type: {type(response)}")
-            print(f"  Response text preview: {response.text[:200]}...")
-            
-            # Parse JSON response
-            if response and hasattr(response, 'text'):
+
+            last_error = None
+
+            for attempt in range(max_retries):
                 try:
-                    return json.loads(response.text)
-                except json.JSONDecodeError:
-                    # Clean response and retry
-                    cleaned = self._clean_json_response(response.text)
-                    return json.loads(cleaned)
-            else:
-                raise ValueError("No valid response received")
-                
+                    # ✅ Make API call with Vertex AI Vision (same functionality)
+                    response = self.model.generate_content([
+                        prompt,
+                        vertex_image
+                    ])
+
+                    # Debug: Log response
+                    print(f"  Response type: {type(response)}")
+                    if response and hasattr(response, "text"):
+                        print(f"  Response text preview: {response.text[:200]}...")
+
+                    # ✅ Parse JSON response (same as your logic)
+                    if response and hasattr(response, 'text'):
+                        try:
+                            return json.loads(response.text)
+                        except json.JSONDecodeError:
+                            # Clean response and retry parsing
+                            cleaned = self._clean_json_response(response.text)
+                            return json.loads(cleaned)
+                    else:
+                        raise ValueError("No valid response received")
+
+                except Exception as e:
+                    last_error = str(e)
+
+                    # ✅ Retry only for rate-limit issues
+                    if "429" in last_error or "Resource exhausted" in last_error:
+                        wait_time = base_wait * (2 ** attempt) + random.uniform(0, 1.5)
+                        print(f"  [Retry] 429 rate-limit hit. Attempt {attempt+1}/{max_retries}. Waiting {wait_time:.1f}s...")
+                        time.sleep(wait_time)
+                        continue
+
+                    # ❌ Non-429 error → no retry (keep original behavior)
+                    raise
+
+            # If all retries failed due to 429
+            raise Exception(f"429 Resource exhausted after {max_retries} retries. Last error: {last_error}")
+
         except Exception as e:
             print(f"Error in Vertex AI vision extraction: {str(e)}")
-            # Return fallback data with basic info
+            # Return fallback data with basic info (same as your fallback structure)
             return {
-                "error": str(e), 
+                "error": str(e),
                 "confidence": 0.0,
                 "component_name": "extraction_failed",
                 "component_type": "unknown",
                 "extraction_method": "vertex_vision_failed"
             }
+
     
     def _clean_json_response(self, response_text: str) -> str:
         """Clean JSON response from Gemini."""
@@ -184,49 +223,19 @@ class VisionPDFProcessor:
     def _build_vision_extraction_prompt(self, readme_content: str) -> str:
         """Build prompt with README context for structured extraction."""
         return f"""
-        You are extracting structured component data from a technical PDF page.
-        
-        README CONTEXT (defines what to extract):
-        {readme_content}
+        You are a technical document analyst. 
         
         TASK:
-        1. Analyze the PDF page image carefully
-        2. Extract ONLY fields mentioned in README context
-        3. Return as valid JSON object
-        4. If data is not found, use null or omit the field
-        5. Focus on technical specifications, pin configurations, and electrical characteristics
+        1. Analyze the provided PDF page image.
+        2. Identify ALL technical specifications, pin details, electrical parameters, or configuration rules present.
+        3. Extract this information into a JSON object. 
+        4. Use descriptive keys that reflect the content (e.g., "pin_out", "voltage_table", "register_description").
         
-        FIELDS TO EXTRACT (based on README):
-        - Component name/type
-        - Electrical specifications (voltage, current, power consumption)
-        - Physical characteristics (package type, pin count, dimensions)
-        - Interface protocols (I2C, SPI, etc.)
-        - Performance specifications (ranges, accuracy)
-        - Pin configurations and functions
-        - Operating conditions (temperature, pressure ranges)
-        
-        Return JSON object with nested structure:
-        {{
-            "component_name": "string",
-            "component_type": "string",
-            "electrical": {{
-                "supply_voltage": {{"min": number, "max": number, "unit": "string"}},
-                "current_consumption": {{"typical": number, "max": number, "unit": "string"}},
-                "power_consumption": {{"typical": number, "unit": "string"}}
-            }},
-            "physical": {{
-                "package": "string",
-                "pins": number,
-                "dimensions": {{"length": number, "width": number, "height": number, "unit": "string"}}
-            }},
-            "interfaces": ["string"],
-            "performance": {{
-                "operating_temperature": {{"min": number, "max": number, "unit": "string"}},
-                "pressure_range": {{"min": number, "max": number, "unit": "string"}}
-            }},
-            "pin_configuration": {{"pin_number": "function"}},
-            "additional_specs": {{"key": "value"}}
-        }}
+        RULES:
+        - Do NOT use a fixed schema.
+        - Capture numeric values and units accurately.
+        - If the page contains a header/title, include it as "page_context".
+        - Return ONLY valid JSON.
         """
     
     def pdf_page_to_image(self, pdf_path: str, page_num: int) -> Image.Image:
@@ -264,25 +273,34 @@ class VisionPDFProcessor:
                     image, self.extraction_prompt
                 )
                 
+                # Extract raw OCR text from page for better search retrieval
+                page = doc[page_num]
+                raw_text = page.get_text()
+                
                 # Calculate confidence
                 confidence = self.vision_extractor._calculate_confidence(page_data)
                 
-                # Create searchable text from structured data
-                searchable_text = self._create_searchable_text(page_data)
+                # Create a rich searchable text including BOTH raw text and structured data
+                searchable_text = f"STRUCTURED DATA:\n{self._create_structured_summary(page_data)}\n\nRAW TECHNICAL TEXT:\n{raw_text}"
+                
+                # Generate a unique source identifier (parent_dir + filename)
+                parent_dir = os.path.basename(os.path.dirname(pdf_path))
+                source_id = f"{parent_dir}/{os.path.basename(pdf_path)}"
                 
                 # Generate chunk ID
                 chunk_id = self._generate_chunk_id(
-                    os.path.basename(pdf_path), page_num + 1, 0
+                    source_id, page_num + 1, 0
                 )
                 
                 # Create structured chunk
                 chunk = StructuredDocumentChunk(
-                    text=searchable_text,
+                    text=raw_text,
                     structured_data=page_data,
                     page_number=page_num + 1,
                     chunk_id=chunk_id,
-                    source_file=os.path.basename(pdf_path),
-                    confidence=confidence
+                    source_file=source_id,
+                    confidence=confidence,
+                    searchable_text=searchable_text
                 )
                 
                 structured_chunks.append(chunk)
@@ -296,8 +314,8 @@ class VisionPDFProcessor:
         
         return structured_chunks
     
-    def _create_searchable_text(self, structured_data: Dict) -> str:
-        """Create searchable text from structured data."""
+    def _create_structured_summary(self, structured_data: Dict) -> str:
+        """Create a summary text from structured data."""
         if "error" in structured_data:
             return ""
         
@@ -311,11 +329,11 @@ class VisionPDFProcessor:
             elif isinstance(obj, list):
                 for item in obj:
                     extract_text(item, prefix)
-            elif obj:
+            elif obj is not None:
                 text_parts.append(f"{prefix}: {obj}")
         
         extract_text(structured_data)
-        return " ".join(text_parts)
+        return " | ".join(text_parts)
     
     def _generate_chunk_id(self, source_file: str, page_number: int, chunk_index: int) -> str:
         """Generate unique chunk ID."""
@@ -324,40 +342,51 @@ class VisionPDFProcessor:
 
 
 class EmbeddingGenerator:
-    """Handles embedding generation using Gemini model."""
+    """Handles embedding generation using Vertex AI model."""
     
     def __init__(self, model_name: str = "text-embedding-004"):
-        print(f"Loading Gemini embedding model: {model_name}")
-        
-        # Get API key from environment
-        api_key = os.getenv('GOOGLE_API_KEY')
-        if not api_key:
-            raise ValueError("GOOGLE_API_KEY not found in environment variables")
-        
-        self.client = genai.Client(api_key=api_key)
-        self.model_name = model_name
-        print("Gemini embedding model loaded successfully")
+        print(f"Loading Vertex AI embedding model: {model_name}")
+        try:
+            self.model = TextEmbeddingModel.from_pretrained(model_name)
+            self.model_name = model_name
+            print("Vertex AI embedding model loaded successfully")
+        except Exception as e:
+            raise Exception(f"Failed to load Vertex AI embedding model: {str(e)}")
     
     def generate_embeddings(self, chunks: List[DocumentChunk]) -> List[DocumentChunk]:
-        """Generate embeddings for all chunks using Gemini."""
+        """Generate embeddings for all chunks using Vertex AI."""
         print(f"Generating embeddings for {len(chunks)} chunks...")
         
-        # Process in batches to respect rate limits
-        batch_size = 100
-        for i in range(0, len(chunks), batch_size):
-            batch_chunks = chunks[i:i+batch_size]
-            texts = [chunk.text for chunk in batch_chunks]
+        # Vertex AI embedding model has a per-request token limit (approx 20k tokens)
+        # We'll use a smaller batch size to avoid hitting this limit
+        texts = [chunk.text[:10000] for chunk in chunks] # Truncate individual chunks if they are extreme
+        
+        batch_size = 5 # Smaller batch size to ensure we stay under 20k tokens total per request
+        
+        all_embeddings = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i+batch_size]
+            try:
+                embeddings = self.model.get_embeddings(batch)
+                all_embeddings.extend(embeddings)
+            except Exception as e:
+                print(f"Warning: Failed to generate embeddings for batch starting at index {i}: {e}")
+                # Fallback: try one by one for this batch
+                for single_text in batch:
+                    try:
+                        single_emb = self.model.get_embeddings([single_text])
+                        all_embeddings.extend(single_emb)
+                    except:
+                        # Append zero vector if everything fails
+                        import numpy as np
+                        class DummyEmbedding:
+                            def __init__(self): self.values = [0.0] * 768
+                        all_embeddings.append(DummyEmbedding())
             
-            # Generate embeddings
-            result = self.client.models.embed_content(
-                model=self.model_name,
-                contents=texts
-            )
-            
-            # Store embeddings
-            for chunk, embedding in zip(batch_chunks, result.embeddings):
-                chunk.embedding = embedding.values
-                chunk.metadata['embedding_length'] = len(embedding.values)
+        # Store embeddings
+        for chunk, embedding in zip(chunks, all_embeddings):
+            chunk.embedding = embedding.values
+            chunk.metadata['embedding_length'] = len(embedding.values)
         
         print("Embeddings generated successfully")
         return chunks
@@ -471,62 +500,22 @@ class VectorDatabase:
             
             # Enhanced metadata for structured data
             metadata = {
-                'original_text': chunk.text,
+                'text': chunk.searchable_text, # Standard field Pinecone expects
+                'original_raw_text': chunk.text,
                 'structured_data': json.dumps(chunk.structured_data),
                 'page_number': chunk.page_number,
                 'source_file': chunk.source_file,
                 'confidence': chunk.confidence,
                 'extraction_method': 'gemini_vision'
             }
-            
-            # Add extracted fields for filtering
             structured = chunk.structured_data
             if structured and 'error' not in structured:
-                try:
-                    # Helper function to safely get nested values
-                    def safe_get(data, *keys, default=None):
-                        for key in keys:
-                            if isinstance(data, dict) and key in data and data[key] is not None:
-                                data = data[key]
-                            else:
-                                return default
-                        return data
-                    
-                    # Helper function to safely get interfaces (handle lists)
-                    def safe_get_interfaces(data):
-                        interfaces = data.get('interfaces')
-                        if interfaces is None:
-                            return []
-                        elif isinstance(interfaces, list):
-                            return interfaces
-                        else:
-                            return [interfaces]  # Convert single value to list
-                    
-                    extracted_metadata = {
-                        'component_name': structured.get('component_name'),
-                        'component_type': structured.get('component_type'),
-                        'package': safe_get(structured, 'physical', 'package'),
-                        'pins': safe_get(structured, 'physical', 'pins'),
-                        'interfaces': safe_get_interfaces(structured),
-                        'supply_voltage_min': safe_get(structured, 'electrical', 'supply_voltage', 'min'),
-                        'supply_voltage_max': safe_get(structured, 'electrical', 'supply_voltage', 'max')
-                    }
-                    
-                    # Filter out None values, but keep empty lists for interfaces
-                    filtered_metadata = {}
-                    for k, v in extracted_metadata.items():
-                        if v is not None:
-                            if k == 'interfaces' and isinstance(v, list):
-                                # Keep interfaces even if empty
-                                filtered_metadata[k] = v
-                            else:
-                                filtered_metadata[k] = v
-                    
-                    metadata.update(filtered_metadata)
-                except Exception as e:
-                    print(f"Error processing metadata for chunk {chunk.chunk_id}: {e}")
-                    print(f"Structured data: {structured}")
-                    # Continue with basic metadata if extraction fails
+                # Simply map all top-level keys from the generic JSON to metadata
+                for key, value in structured.items():
+                    if isinstance(value, (str, int, float, bool)):
+                        metadata[f"spec_{key}"] = value
+                    elif isinstance(value, list) and all(isinstance(x, str) for x in value):
+                        metadata[f"spec_{key}"] = value
             
             vectors.append({
                 'id': chunk.chunk_id,
@@ -544,12 +533,9 @@ class VectorDatabase:
     
     def search_similar_chunks(self, query: str, n_results: int = 5) -> List[Dict[str, Any]]:
         """Search for similar chunks using Pinecone."""
-        # Generate embedding for query using Gemini
-        result = self.embedding_generator.client.models.embed_content(
-            model=self.embedding_generator.model_name,
-            contents=[query]
-        )
-        query_embedding = result.embeddings[0].values
+        # Generate embedding for query using Vertex AI
+        embeddings = self.embedding_generator.model.get_embeddings([query])
+        query_embedding = embeddings[0].values
         
         # Search in Pinecone
         results = self.index.query(
@@ -600,7 +586,7 @@ class RAGIngestionPipeline:
         for chunk in high_confidence_chunks:
             # Create temporary DocumentChunk for embedding generation
             temp_chunk = DocumentChunk(
-                text=chunk.text,
+                text=chunk.searchable_text,
                 page_number=chunk.page_number,
                 chunk_id=chunk.chunk_id,
                 source_file=chunk.source_file,
@@ -642,11 +628,8 @@ class RAGIngestionPipeline:
         
         # Generate a generic embedding for the search
         query_text = "component specifications technical details"
-        result = self.embedding_generator.client.models.embed_content(
-            model=self.embedding_generator.model_name,
-            contents=[query_text]
-        )
-        query_embedding = result.embeddings[0].values
+        embeddings = self.embedding_generator.model.get_embeddings([query_text])
+        query_embedding = embeddings[0].values
         
         # Search with filters
         results = self.vector_db.index.query(
@@ -701,11 +684,10 @@ def main():
             print(json.dumps(sample_chunk.structured_data, indent=2)[:500] + "...")
             
             # Test structured search
-            print("\n=== Testing Structured Search ===")
+            print("\n=== Testing Structured Search (Voltage: 1.0-5.0V) ===")
             results = pipeline.search_by_specifications(
                 min_voltage=1.0,
                 max_voltage=5.0,
-                package_type="TSSOP",
                 limit=3
             )
             
@@ -727,3 +709,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+     

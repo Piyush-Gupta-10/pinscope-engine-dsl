@@ -1,8 +1,9 @@
 google-cloud-aiplatform
 PyYAML
-sentence-transformers
 pinecone
 python-dotenv
 numpy
 google-generativeai
 google-genai
+PyMuPDF
+Pillow
