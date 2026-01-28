@@ -1,0 +1,108 @@
+component: MPU-6050
+category: Sensor
+
+packages:
+  qfn24:
+    pins:
+      power.vdd.main: ["13"]
+      power.gnd.ref: ["18"]
+      signal.i2c.scl: ["23"]
+      signal.i2c.sda: ["24"]
+      signal.aux.da: ["6"]
+      signal.aux.cl: ["7"]
+      config.i2c_addr.lsb: ["9"]
+      power.vlogic.main: ["8"]
+      analog.cap.regout: ["10"]
+      signal.fsync.in: ["11"]
+      signal.int.out: ["12"]
+      analog.cap.cpout: ["20"]
+
+pins:
+  power.vdd.main:
+    names: ["VDD"]
+    role: power
+    direction: input
+    voltage:
+      nominal: 3.3
+      abs_min: 2.375
+      abs_max: 3.46
+    rules:
+      - cap(0.1u)!
+    description: Power supply voltage and Digital I/O supply voltage
+
+  power.gnd.ref:
+    names: ["GND"]
+    role: ground
+    direction: passive
+    description: Power supply ground
+
+  signal.i2c.scl:
+    names: ["SCL"]
+    role: io
+    direction: bidirectional
+    description: I2C serial clock
+
+  signal.i2c.sda:
+    names: ["SDA"]
+    role: io
+    direction: bidirectional
+    description: I2C serial data
+    rules:
+      - pull(up, power.vdd.main, <=10k)!
+    tags: [i2c_sda]
+
+  signal.aux.da:
+    names: ["AUX_DA"]
+    role: io
+    direction: bidirectional
+    description: I2C master serial data, for connecting to external sensors
+
+  signal.aux.cl:
+    names: ["AUX_CL"]
+    role: clock
+    direction: output
+    description: I2C Master serial clock, for connecting to external sensors
+
+  config.i2c_addr.lsb:
+    names: ["AD0"]
+    role: config
+    direction: input
+    description: I2C Slave Address LSB
+
+  power.vlogic.main:
+    names: ["VLOGIC"]
+    role: power
+    direction: input
+    voltage:
+      nominal: 1.8
+      abs_min: 1.71
+      abs_max: 3.46
+    description: Digital I/O supply voltage. VLOGIC must be ≤ VDD at all times.
+
+  analog.cap.regout:
+    names: ["REGOUT"]
+    role: analog
+    direction: passive
+    rules:
+      - cap(0.1u)!
+    description: Regulator filter capacitor connection
+
+  signal.fsync.in:
+    names: ["FSYNC"]
+    role: io
+    direction: input
+    description: Frame synchronization digital input. Connect to GND if unused.
+
+  signal.int.out:
+    names: ["INT"]
+    role: io
+    direction: output
+    description: Interrupt digital output (totem pole or open-drain)
+
+  analog.cap.cpout:
+    names: ["CPOUT"]
+    role: analog
+    direction: passive
+    rules:
+      - cap(2.2n)!
+    description: Charge pump capacitor connection

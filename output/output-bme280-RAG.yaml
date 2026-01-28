@@ -1,0 +1,62 @@
+component: BME280
+category: Sensor
+
+packages:
+  lga8:
+    pins:
+      power.gnd.main: ["1", "7"]
+      signal.csb.in: ["2"]
+      signal.sdi.io: ["3"]
+      signal.sck.in: ["4"]
+      signal.sdo.io: ["5"]
+      power.vddio.main: ["6"]
+      power.vdd.main: ["8"]
+
+pins:
+  power.gnd.main:
+    names: ["GND"]
+    role: ground
+    direction: input
+    description: Ground
+
+  signal.csb.in:
+    names: ["CSB"]
+    role: io
+    direction: input
+    description: Chip select
+
+  signal.sdi.io:
+    names: ["SDI"]
+    role: io
+    direction: bidirectional
+    description: Serial data input
+
+  signal.sck.in:
+    names: ["SCK"]
+    role: clock
+    direction: input
+    description: Serial clock input
+
+  signal.sdo.io:
+    names: ["SDO"]
+    role: io
+    direction: bidirectional
+    description: Serial data output
+
+  power.vddio.main:
+    names: ["VDDIO"]
+    role: power
+    direction: input
+    voltage:
+      min: 1.2
+      max: 3.6
+    description: Digital / Interface supply
+
+  power.vdd.main:
+    names: ["VDD"]
+    role: power
+    direction: input
+    voltage:
+      min: 1.71
+      max: 3.6
+    description: Analog supply

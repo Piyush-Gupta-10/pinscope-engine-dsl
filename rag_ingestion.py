@@ -354,41 +354,69 @@ class EmbeddingGenerator:
             raise Exception(f"Failed to load Vertex AI embedding model: {str(e)}")
     
     def generate_embeddings(self, chunks: List[DocumentChunk]) -> List[DocumentChunk]:
-        """Generate embeddings for all chunks using Vertex AI."""
+        """Generate embeddings for all chunks using Vertex AI with retries."""
         print(f"Generating embeddings for {len(chunks)} chunks...")
         
-        # Vertex AI embedding model has a per-request token limit (approx 20k tokens)
-        # We'll use a smaller batch size to avoid hitting this limit
-        texts = [chunk.text[:10000] for chunk in chunks] # Truncate individual chunks if they are extreme
+        import time
+        import random
         
-        batch_size = 5 # Smaller batch size to ensure we stay under 20k tokens total per request
+        # Vertex AI embedding model has a per-request token limit (approx 20k tokens)
+        texts = [chunk.text[:10000] for chunk in chunks]
+        batch_size = 5
         
         all_embeddings = []
+        
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i+batch_size]
-            try:
-                embeddings = self.model.get_embeddings(batch)
-                all_embeddings.extend(embeddings)
-            except Exception as e:
-                print(f"Warning: Failed to generate embeddings for batch starting at index {i}: {e}")
+            max_retries = 5
+            base_wait = 5
+            
+            embeddings_received = None
+            for attempt in range(max_retries):
+                try:
+                    embeddings_received = self.model.get_embeddings(batch)
+                    break
+                except Exception as e:
+                    if "429" in str(e) or "503" in str(e) or "ConnectEx" in str(e):
+                        wait_time = base_wait * (2 ** attempt) + random.random()
+                        print(f"  [Embedding Retry] Error: {e}. Attempt {attempt+1}/{max_retries}. Waiting {wait_time:.1f}s...")
+                        time.sleep(wait_time)
+                    else:
+                        print(f"  [Embedding Error] Non-retryable error: {e}")
+                        break
+            
+            if embeddings_received:
+                all_embeddings.extend(embeddings_received)
+            else:
                 # Fallback: try one by one for this batch
+                print(f"  Batch starting at {i} failed after retries. Trying individual chunks...")
                 for single_text in batch:
-                    try:
-                        single_emb = self.model.get_embeddings([single_text])
-                        all_embeddings.extend(single_emb)
-                    except:
-                        # Append zero vector if everything fails
-                        import numpy as np
-                        class DummyEmbedding:
-                            def __init__(self): self.values = [0.0] * 768
-                        all_embeddings.append(DummyEmbedding())
+                    single_emb_received = None
+                    for attempt in range(max_retries):
+                        try:
+                            single_emb_received = self.model.get_embeddings([single_text])
+                            break
+                        except Exception as e:
+                            wait_time = base_wait * (2 ** attempt) + random.random()
+                            time.sleep(wait_time)
+                    
+                    if single_emb_received:
+                        all_embeddings.extend(single_emb_received)
+                    else:
+                        print(f"  Failed to embed chunk starting with: {single_text[:50]}...")
+                        # Append None instead of zero vector
+                        all_embeddings.append(None)
             
         # Store embeddings
         for chunk, embedding in zip(chunks, all_embeddings):
-            chunk.embedding = embedding.values
-            chunk.metadata['embedding_length'] = len(embedding.values)
+            if embedding:
+                chunk.embedding = embedding.values
+                if hasattr(chunk, 'metadata'):
+                    chunk.metadata['embedding_length'] = len(embedding.values)
+            else:
+                chunk.embedding = None
         
-        print("Embeddings generated successfully")
+        print("Embeddings generation process completed")
         return chunks
 
 
@@ -451,7 +479,8 @@ class VectorDatabase:
         for chunk in chunks:
             # Use pre-computed embedding if available
             if chunk.embedding is None:
-                raise ValueError(f"Chunk {chunk.chunk_id} has no embedding. Call generate_embeddings first.")
+                print(f"  [Skip] Chunk {chunk.chunk_id} has no embedding.")
+                continue
             
             # Prepare metadata
             metadata = chunk.metadata.copy()
@@ -496,7 +525,8 @@ class VectorDatabase:
         for chunk in chunks:
             # Use pre-computed embedding if available
             if chunk.embedding is None:
-                raise ValueError(f"Chunk {chunk.chunk_id} has no embedding. Call generate_embeddings first.")
+                print(f"  [Skip] Chunk {chunk.chunk_id} has no embedding.")
+                continue
             
             # Enhanced metadata for structured data
             metadata = {
