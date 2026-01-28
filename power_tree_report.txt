@@ -1,0 +1,124 @@
+================================================================================
+POWER TREE ANALYSIS REPORT
+================================================================================
+
+Summary:
+  - Total Power Nets: 4
+  - Total Power Sources: 7
+  - Total Power Loads: 14
+
+--------------------------------------------------------------------------------
+Power Net: VP_24_D_ISO_CONN
+Voltage: 24V
+
+  LOADS (Power Consumers):
+    • U11 (Pin 4)
+      MPN: FGDS-6A-100V
+      Description: Power Line Filters 28V 6A MIL COTS QPI FLTR
+
+    • U11 (Pin 5)
+      MPN: FGDS-6A-100V
+      Description: Power Line Filters 28V 6A MIL COTS QPI FLTR
+
+--------------------------------------------------------------------------------
+Power Net: VP_3.3_D
+Voltage: 3.3V
+
+  SOURCES (Power Suppliers):
+    • U20 (Pin 6)
+      MPN: LMZM33603RLRR
+      Description: DC DC CONVERTER 1-18V
+
+Non-Isolated PoL Module DC DC Converter 1 Output 1 ~ 18V 3A 4V - 36V Input
+
+    • U20 (Pin 7)
+      MPN: LMZM33603RLRR
+      Description: DC DC CONVERTER 1-18V
+
+Non-Isolated PoL Module DC DC Converter 1 Output 1 ~ 18V 3A 4V - 36V Input
+
+    • U20 (Pin 8)
+      MPN: LMZM33603RLRR
+      Description: DC DC CONVERTER 1-18V
+
+Non-Isolated PoL Module DC DC Converter 1 Output 1 ~ 18V 3A 4V - 36V Input
+
+  LOADS (Power Consumers):
+    • U2 (Pin 1)
+      MPN: ISO1432BDW
+      Description: 1/1 Transceiver, Isolated Full RS422, RS485 16-SOIC 12Mbps
+
+    • U8 (Pin 6)
+      MPN: TLP2367E
+      Description: High Speed Optocouplers Photo-IC 2.7 to 5.5V 3750Vrms 2.5mA 50Mb
+
+    • U9 (Pin 1)
+      MPN: ISO1042QDWRQ1
+      Description: IC - Isolated CAN transceiver upto 5Mbps, 16kV
+
+    • U12 (Pin 6)
+      MPN: TLP2367E
+      Description: High Speed Optocouplers Photo-IC 2.7 to 5.5V 3750Vrms 2.5mA 50Mb
+
+    • U15 (Pin 1)
+      MPN: ISO7242CDWR
+      Description: General Purpose Digital Isolator 2500Vrms 4 Channel 25Mbps
+
+    • U17 (Pin 1)
+      MPN: ISO1432BDW
+      Description: 1/1 Transceiver, Isolated Full RS422, RS485 16-SOIC 12Mbps
+
+--------------------------------------------------------------------------------
+Power Net: VP_5_D
+Voltage: 5V
+
+  SOURCES (Power Suppliers):
+    • U6 (Pin 1)
+      MPN: DCR010505U
+      Description: Isolated Module DC DC Converter 1 Output 5V 200mA 4.5V - 5.5V Input
+
+    • U6 (Pin 2)
+      MPN: DCR010505U
+      Description: Isolated Module DC DC Converter 1 Output 5V 200mA 4.5V - 5.5V Input
+
+    • U20 (Pin 4)
+      MPN: LMZM33603RLRR
+      Description: DC DC CONVERTER 1-18V
+
+Non-Isolated PoL Module DC DC Converter 1 Output 1 ~ 18V 3A 4V - 36V Input
+
+--------------------------------------------------------------------------------
+Power Net: VP_5_ISO
+Voltage: 5V
+
+  SOURCES (Power Suppliers):
+    • U6 (Pin 14)
+      MPN: DCR010505U
+      Description: Isolated Module DC DC Converter 1 Output 5V 200mA 4.5V - 5.5V Input
+
+  LOADS (Power Consumers):
+    • U7 (Pin 8)
+      MPN: VO0630T
+      Description: Logic Output Optoisolator 10MBd Open Drain 4000Vrms 
+
+    • U9 (Pin 16)
+      MPN: ISO1042QDWRQ1
+      Description: IC - Isolated CAN transceiver upto 5Mbps, 16kV
+
+    • U14 (Pin 6)
+      MPN: TLP2367E
+      Description: High Speed Optocouplers Photo-IC 2.7 to 5.5V 3750Vrms 2.5mA 50Mb
+
+    • U15 (Pin 16)
+      MPN: ISO7242CDWR
+      Description: General Purpose Digital Isolator 2500Vrms 4 Channel 25Mbps
+
+    • U16 (Pin 11)
+      MPN: MAX13235EEUP+
+      Description: 2/2 Transceiver Full RS232 20-TSSOP
+
+    • U16 (Pin 19)
+      MPN: MAX13235EEUP+
+      Description: 2/2 Transceiver Full RS232 20-TSSOP
+
+================================================================================
